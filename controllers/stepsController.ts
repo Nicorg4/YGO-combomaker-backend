@@ -6,33 +6,57 @@ export const getComboStep = async (req: Request, res: Response) => {
     if (!comboId) {
         return res.status(400).json({ message: 'Missing combo id' });
     }
-    try{
-        const stepsResult = await pool.query('SELECT * FROM steps WHERE combo_id = $1', [comboId]);
+    try {
+        const stepsResult = await pool.query(`SELECT * FROM steps WHERE combo_id = $1 ORDER BY step_order`, [comboId]);
         if (stepsResult.rows.length === 0) {
-            return res.status(404).json({ message: 'No steps found for this combo' });
+            return res.status(200).json([]);
         }
-        res.status(200).json(stepsResult.rows);
-    }catch (error) {
+        const stepIds = stepsResult.rows.map(step => step.id);
+        const targetCardsResult = await pool.query(`SELECT * FROM step_targets WHERE step_id = ANY($1)`, [stepIds]);
+        const stepsWithTargets = stepsResult.rows.map(step => {
+            const targets = targetCardsResult.rows.filter(tc => tc.step_id === step.id);
+            return {
+                ...step,
+                step_targets: targets
+            };
+        });
+        res.status(200).json(stepsWithTargets);
+    } catch (error) {
         res.status(500).json({ message: 'Error while trying to get combo steps' });
     }
 }
 
 export const createComboStep = async (req: Request, res: Response) => {
     const { comboId } = req.params;
-    const { card_id, action_text, step_order } = req.body;
-    if (!card_id || !action_text || !step_order) {
+    const { card_id, action_text, step_order, target_card_ids } = req.body;
+    console.log(req.body);
+
+    if (!card_id || !action_text || step_order == null) {
         return res.status(400).json({ message: 'Missing required fields' });
     }
+
     try {
-        const createStepQuery = 'INSERT INTO steps (card_id, action_text, step_order, combo_id) VALUES ($1, $2, $3, $4) RETURNING *';
+        const createStepQuery =
+            'INSERT INTO steps (card_id, action_text, step_order, combo_id) VALUES ($1, $2, $3, $4) RETURNING *';
         const stepResult = await pool.query(createStepQuery, [card_id, action_text, step_order, comboId]);
-        res.status(201).json(stepResult.rows[0]);
+        const createdStep = stepResult.rows[0];
+
+        if (Array.isArray(target_card_ids) && target_card_ids.length > 0) {
+            const insertTargetsPromises = target_card_ids.map((targetCardId: number) =>
+                pool.query('INSERT INTO step_targets (step_id, target_card_id) VALUES ($1, $2)', [createdStep.id, targetCardId])
+            );
+            await Promise.all(insertTargetsPromises);
+        }
+
+        res.status(201).json({ message: 'Step created', step: createdStep });
     } catch (error) {
+        console.error('Error creating step:', error);
         res.status(500).json({ message: 'Error while trying to create a step' });
     }
-}
+};
 
-export const removeStep = async (req:Request, res:Response) => {
+
+export const removeStep = async (req: Request, res: Response) => {
     const { stepId } = req.params;
     try {
         await pool.query('DELETE FROM steps WHERE id = $1', [stepId]);
@@ -42,7 +66,7 @@ export const removeStep = async (req:Request, res:Response) => {
     }
 }
 
-export const updateStep = async (req:Request, res:Response) => {
+export const updateStep = async (req: Request, res: Response) => {
     const { stepId } = req.params;
     const { card_id, action_text, step_order } = req.body;
     try {

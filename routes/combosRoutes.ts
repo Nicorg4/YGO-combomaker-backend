@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { assignTagToCombo, createCombo, getCombos, removeCombo, updateCombo } from "../controllers/combosController";
+import { assignTagToCombo, createCombo, getCombosByDeckId, removeCombo, updateCombo, getCombo } from "../controllers/combosController";
 
 const router = Router();
 
-router.get("/deck/:deckId", getCombos);
+router.get("/:comboId", getCombo);
+router.get("/deck/:deckId", getCombosByDeckId);
 router.post("/deck/:deckId", createCombo);
 router.delete("/:comboId", removeCombo);
 router.put("/:comboId", updateCombo);
