@@ -20,6 +20,28 @@ export const getAllDecks = async (req: Request, res: Response) => {
             [limit, offset]
         );
 
+        const comboCountForEachDeck = await pool.query(
+            `
+                SELECT deck_id, COUNT(*) AS combo_count
+                FROM combos
+                GROUP BY deck_id;
+            `
+        );
+
+        const deckComboCounts = new Map<number, number>();
+        
+        comboCountForEachDeck.rows.forEach((row) => {
+            deckComboCounts.set(row.deck_id, row.combo_count);
+        }); 
+
+        const decksWithComboCounts = decksResult.rows.map((deck) => {
+            const comboCount = deckComboCounts.get(deck.id) || 0;
+            return {
+                ...deck,
+                combos_count: comboCount,
+            };
+        });
+
         if (decksResult.rows.length === 0) {
             return res.status(200).json([]);
         }
@@ -28,7 +50,7 @@ export const getAllDecks = async (req: Request, res: Response) => {
             total,
             page,
             limit,
-            decks: decksResult.rows,
+            decks: decksWithComboCounts,
         });
     } catch (error) {
         console.error('Error fetching decks ordered by combos:', error);
