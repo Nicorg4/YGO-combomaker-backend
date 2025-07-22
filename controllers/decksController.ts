@@ -14,7 +14,7 @@ export const getAllDecks = async (req: Request, res: Response) => {
                 FROM decks d
                 LEFT JOIN combos c ON c.deck_id = d.id
                 GROUP BY d.id
-                ORDER BY combos_count DESC
+                ORDER BY combos_count DESC, name ASC
                 LIMIT $1 OFFSET $2;
             `,
             [limit, offset]
