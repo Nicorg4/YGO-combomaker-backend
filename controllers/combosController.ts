@@ -47,6 +47,14 @@ export const getCombosByDeckId = async (req: Request, res: Response) => {
             ORDER BY sh.combo_id
         `, [comboIds]);
 
+        const finalBoardResult = await pool.query(`
+            SELECT fb.combo_id, c.id AS card_id, c.name AS card_name
+            FROM combo_final_board fb
+            JOIN cards c ON fb.card_id = c.id
+            WHERE fb.combo_id = ANY($1)
+            ORDER BY fb.combo_id, fb.position
+        `, [comboIds]);
+
         const combosWithDetails = combos.map(combo => {
             const tags = tagsResult.rows
                 .filter(tag => tag.combo_id === combo.id)
@@ -56,9 +64,14 @@ export const getCombosByDeckId = async (req: Request, res: Response) => {
                 .filter(card => card.combo_id === combo.id)
                 .map(({ card_id, card_name }) => ({ card_id, card_name }));
 
+            const final_board = finalBoardResult.rows
+                .filter(card => card.combo_id === combo.id)
+                .map(({ card_id, card_name }) => ({ card_id, card_name }));
+
             return {
                 ...combo,
                 tags,
+                final_board,
                 starting_hand,
             };
         });

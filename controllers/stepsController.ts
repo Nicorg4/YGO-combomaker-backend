@@ -29,7 +29,6 @@ export const getComboStep = async (req: Request, res: Response) => {
 export const createComboStep = async (req: Request, res: Response) => {
     const { comboId } = req.params;
     const { card_id, action_text, step_order, target_card_ids } = req.body;
-    console.log(req.body);
 
     if (!card_id || !action_text || step_order == null) {
         return res.status(400).json({ message: 'Missing required fields' });

@@ -8,6 +8,7 @@ import stepTargetsRoutes from './routes/stepTargetsRoutes';
 import tagsRoutes from './routes/tagsRoutes';
 import comboTagsRoutes from './routes/comboTagsRoutes';
 import comboStartingHandRoutes from './routes/comboStartingHandRoutes';
+import comboFinalBoard from './routes/comboFinalBoardRoutes';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use("/stepTargets", stepTargetsRoutes);
 app.use("/tags", tagsRoutes);
 app.use("/comboTags", comboTagsRoutes);
 app.use("/comboStartingHand", comboStartingHandRoutes)
+app.use("/comboFinalBoard", comboFinalBoard)
 
 
 
@@ -40,7 +42,7 @@ pool.query('SELECT 1', (err) => {
         console.error('Error conectando a la base de datos:', err);
         process.exit(1);
     } else {
-        console.log('✅ Conexión a la base de datos exitosa');
+        console.log('✅ DB connection successful');
 
         app.listen(PORT, () => {
             console.log("Server is running on port " + PORT);

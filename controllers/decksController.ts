@@ -39,7 +39,6 @@ export const getAllDecks = async (req: Request, res: Response) => {
 export const createDeck = async (req: Request, res: Response) => {
     const { name, description } = req.body;
     const image_url = req.file?.filename;
-    console.log('📁 File recibido:', req.file);
     if (!name || !description || !image_url) {
         return res.status(400).json({ message: 'Missing required fields' });
     }
