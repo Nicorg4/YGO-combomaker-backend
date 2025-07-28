@@ -120,3 +120,169 @@ export const updateDeck = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error while trying to update a deck" });
   }
 };
+
+export const setDeckInfo = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  const { id } = req.params;
+
+  const { note, key_cards, main_dangers } = req.body;
+
+  try {
+    await client.query("BEGIN");
+
+    const allCards: { card_id: number; card_name: string }[] = [];
+
+    const addUniqueCard = (card: any) => {
+      if (
+        card &&
+        card.card_id &&
+        card.card_name &&
+        !allCards.some((c) => c.card_id === card.card_id)
+      ) {
+        allCards.push({ card_id: card.card_id, card_name: card.card_name });
+      }
+    };
+
+    key_cards?.forEach(
+      (kc: { card_id: number; card_name: string; description: string }) =>
+        addUniqueCard(kc)
+    );
+    main_dangers?.forEach(
+      (danger: {
+        card_id: number;
+        card_name: string;
+        extra_notes: string;
+        responses: {
+          card_id: number;
+          card_name: string;
+        }[];
+      }) => {
+        addUniqueCard(danger);
+        danger.responses?.forEach(addUniqueCard);
+      }
+    );
+
+    for (const card of allCards) {
+      await client.query(
+        `INSERT INTO cards (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING`,
+        [card.card_id, card.card_name]
+      );
+    }
+
+    await client.query(`UPDATE decks SET note = $1 WHERE id = $2`, [note, id]);
+
+    await client.query(`DELETE FROM deck_key_cards WHERE deck_id = $1`, [id]);
+
+    const dangerIdsRes = await client.query(
+      `SELECT id FROM deck_main_dangers WHERE deck_id = $1`,
+      [id]
+    );
+    const dangerIds = dangerIdsRes.rows.map((r) => r.id);
+
+    if (dangerIds.length > 0) {
+      await client.query(
+        `DELETE FROM main_dangers_response WHERE deck_main_danger_id = ANY($1::int[])`,
+        [dangerIds]
+      );
+    }
+
+    await client.query(`DELETE FROM deck_main_dangers WHERE deck_id = $1`, [
+      id,
+    ]);
+
+    if (Array.isArray(key_cards)) {
+      for (const kc of key_cards) {
+        await client.query(
+          `INSERT INTO deck_key_cards (deck_id, card_id, description) VALUES ($1, $2, $3)`,
+          [id, kc.card_id, kc.description]
+        );
+      }
+    }
+
+    if (Array.isArray(main_dangers)) {
+      for (const danger of main_dangers) {
+        const dangerRes = await client.query(
+          `INSERT INTO deck_main_dangers (deck_id, card_id, extra_notes) VALUES ($1, $2, $3) RETURNING id`,
+          [id, danger.card_id, danger.extra_notes]
+        );
+        const dangerId = dangerRes.rows[0].id;
+
+        if (Array.isArray(danger.responses)) {
+          for (const resp of danger.responses) {
+            await client.query(
+              `INSERT INTO main_dangers_response (deck_main_danger_id, card_id) VALUES ($1, $2)`,
+              [dangerId, resp.card_id]
+            );
+          }
+        }
+      }
+    }
+
+    await client.query("COMMIT");
+    res.status(200).json({ message: "Deck info saved successfully." });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error in setDeckInfo:", error);
+    res.status(500).json({ message: "Internal server error" });
+  } finally {
+    client.release();
+  }
+};
+
+export const getDeckInfo = async (req: Request, res: Response) => {
+  const client = await pool.connect();
+  const { id } = req.params;
+
+  try {
+    const deckRes = await client.query(`SELECT note FROM decks WHERE id = $1`, [
+      id,
+    ]);
+    const note = deckRes.rows[0]?.note || null;
+
+    const keyCardsRes = await client.query(
+      `SELECT k.card_id, c.name AS card_name, k.description
+       FROM deck_key_cards k
+       JOIN cards c ON k.card_id = c.id
+       WHERE k.deck_id = $1`,
+      [id]
+    );
+
+    const dangersRes = await client.query(
+      `SELECT d.id, d.card_id, c.name AS card_name, d.extra_notes
+       FROM deck_main_dangers d
+       JOIN cards c ON d.card_id = c.id
+       WHERE d.deck_id = $1`,
+      [id]
+    );
+
+    const main_dangers = [];
+
+    for (const danger of dangersRes.rows) {
+      const respRes = await client.query(
+        `SELECT r.card_id, c.name AS card_name
+         FROM main_dangers_response r
+         JOIN cards c ON r.card_id = c.id
+         WHERE r.deck_main_danger_id = $1`,
+        [danger.id]
+      );
+
+      main_dangers.push({
+        card_id: danger.card_id,
+        card_name: danger.card_name,
+        extra_notes: danger.extra_notes,
+        responses: respRes.rows,
+      });
+    }
+
+    res.status(200).json({
+      note,
+      key_cards: keyCardsRes.rows,
+      main_dangers,
+    });
+  } catch (error) {
+    console.error("Error in getDeckInfo:", error);
+    res.status(500).json({ message: "Internal server error" });
+  } finally {
+    client.release();
+  }
+};
