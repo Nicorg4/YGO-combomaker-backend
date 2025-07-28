@@ -11,13 +11,13 @@ export const createFinalBoard = async (req: Request, res: Response) => {
     try {
         const insertCardPromises = cards.map(card => {
             const query = 'INSERT INTO cards (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING';
-            return pool.query(query, [card.id, card.name]);
+            return pool.query(query, [card.card_id, card.card_name]);
         });
         await Promise.all(insertCardPromises);
 
         const insertFinalBoardPromises = cards.map((card, position) => {
             const query = 'INSERT INTO combo_final_board (combo_id, card_id, position) VALUES ($1, $2, $3)';
-            return pool.query(query, [combo_id, card.id, position]);
+            return pool.query(query, [combo_id, card.card_id, position]);
         });
         await Promise.all(insertFinalBoardPromises);
 

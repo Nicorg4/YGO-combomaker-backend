@@ -11,13 +11,13 @@ export const createComboStartingHand = async (req: Request, res: Response) => {
     try {
         const insertCardPromises = cards.map(card => {
             const query = 'INSERT INTO cards (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING';
-            return pool.query(query, [card.id, card.name]);
+            return pool.query(query, [card.card_id, card.card_name]);
         });
         await Promise.all(insertCardPromises);
 
         const insertStartingHandPromises = cards.map(card => {
             const query = 'INSERT INTO combo_starting_hand (combo_id, card_id) VALUES ($1, $2)';
-            return pool.query(query, [combo_id, card.id]);
+            return pool.query(query, [combo_id, card.card_id]);
         });
         await Promise.all(insertStartingHandPromises);
 
