@@ -234,9 +234,10 @@ export const getDeckInfo = async (req: Request, res: Response) => {
   const { id } = req.params;
 
   try {
-    const deckRes = await client.query(`SELECT note FROM decks WHERE id = $1`, [
+    const deckRes = await client.query(`SELECT name, note FROM decks WHERE id = $1`, [
       id,
     ]);
+    const name = deckRes.rows[0]?.name || null;
     const note = deckRes.rows[0]?.note || null;
 
     const keyCardsRes = await client.query(
@@ -275,6 +276,7 @@ export const getDeckInfo = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({
+      name,
       note,
       key_cards: keyCardsRes.rows,
       main_dangers,
