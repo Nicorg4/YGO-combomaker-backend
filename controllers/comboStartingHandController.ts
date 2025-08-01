@@ -15,9 +15,9 @@ export const createComboStartingHand = async (req: Request, res: Response) => {
         });
         await Promise.all(insertCardPromises);
 
-        const insertStartingHandPromises = cards.map(card => {
-            const query = 'INSERT INTO combo_starting_hand (combo_id, card_id) VALUES ($1, $2)';
-            return pool.query(query, [combo_id, card.card_id]);
+        const insertStartingHandPromises = cards.map((card, position) => {
+            const query = 'INSERT INTO combo_starting_hand (combo_id, card_id, position) VALUES ($1, $2, $3)';
+            return pool.query(query, [combo_id, card.card_id, position]);
         });
         await Promise.all(insertStartingHandPromises);
 

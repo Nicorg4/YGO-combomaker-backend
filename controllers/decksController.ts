@@ -252,7 +252,9 @@ export const getDeckInfo = async (req: Request, res: Response) => {
       `SELECT d.id, d.card_id, c.name AS card_name, d.extra_notes
        FROM deck_main_dangers d
        JOIN cards c ON d.card_id = c.id
-       WHERE d.deck_id = $1`,
+       WHERE d.deck_id = $1
+       ORDER BY d.id ASC
+       `,
       [id]
     );
 

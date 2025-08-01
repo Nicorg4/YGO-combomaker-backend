@@ -28,7 +28,7 @@ export const getCombo = async (req: Request, res: Response) => {
             FROM combo_starting_hand sh
             JOIN cards c ON sh.card_id = c.id
             WHERE sh.combo_id = $1
-            ORDER BY sh.combo_id
+            ORDER BY sh.combo_id, sh.position
         `,
       [comboId]
     );
@@ -48,6 +48,7 @@ export const getCombo = async (req: Request, res: Response) => {
     const starting_hand = startingHandResult.rows.map(
       ({ card_id, card_name }) => ({ card_id, card_name })
     );
+    console.log(starting_hand);
     const final_board = finalBoardResult.rows.map(({ card_id, card_name }) => ({
       card_id,
       card_name,
@@ -96,7 +97,7 @@ export const getCombosByDeckId = async (req: Request, res: Response) => {
             FROM combo_starting_hand sh
             JOIN cards c ON sh.card_id = c.id
             WHERE sh.combo_id = ANY($1)
-            ORDER BY sh.combo_id
+            ORDER BY sh.combo_id, sh.position
         `,
       [comboIds]
     );
@@ -270,10 +271,11 @@ export const createFullCombo = async (req: Request, res: Response) => {
     }
 
     if (Array.isArray(starting_hand)) {
-      for (const card of starting_hand) {
+      for (let i = 0; i < starting_hand.length; i++) {
+        const card = starting_hand[i];
         await client.query(
-          `INSERT INTO combo_starting_hand (combo_id, card_id) VALUES ($1, $2)`,
-          [combo.id, card.card_id]
+          `INSERT INTO combo_starting_hand (combo_id, card_id, position) VALUES ($1, $2, $3)`,
+          [combo.id, card.card_id, i]
         );
       }
     }
@@ -409,10 +411,11 @@ export const updateFullCombo = async (req: Request, res: Response) => {
     }
 
     if (Array.isArray(starting_hand)) {
-      for (const card of starting_hand) {
+      for (let i = 0; i < starting_hand.length; i++) {
+        const card = starting_hand[i];
         await client.query(
-          `INSERT INTO combo_starting_hand (combo_id, card_id) VALUES ($1, $2)`,
-          [comboId, card.card_id]
+          `INSERT INTO combo_starting_hand (combo_id, card_id, position) VALUES ($1, $2, $3)`,
+          [comboId, card.card_id, i]
         );
       }
     }
